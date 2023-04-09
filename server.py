@@ -2,7 +2,7 @@
 ## Author: Vojtech Fiala <xfiala61>
 
 import socket
-from utils import generateKey, readKey, formatKeyPrint, RSAunpadding, generateHash
+from utils import generateKey, readKey, formatKeyPrint, RSAunpadding, generateHash, getRandomKey, RSApadding, parseKey, getTextAndSig
 from Crypto.PublicKey import RSA
 from Crypto.Cipher import AES
 
@@ -23,54 +23,6 @@ def startServer(port):
         handleClient(connection, first)
         first = 0
 
-def parseKey(message):
-    tmp = str(message)[::-1]
-    key = []
-    nonce = []
-    it = 1
-    
-    while it < len(tmp):
-        if tmp[it] == "'":
-            break
-        nonce.append(tmp[it])
-        it += 1
-    
-    it += 1
-    while it < len(tmp):
-        if tmp[it] == "'":
-            break
-        key.append(tmp[it])
-        it += 1
-
-    if key[0] == '\\': # i have no idea why sometimes this appears, sometimes doesnt, this fixes it
-        key = key[1:] 
-    new_message = message[::-1]
-    new_message = new_message[it-1:]
-    new_message = new_message[::-1]
-    
-    return ''.join(nonce[::-1]), ''.join(key[::-1]), new_message
-
-def getTextAndSig(text):
-    text = text.decode('utf-8', 'ignore')
-
-    text = text[::-1]
-    l = len(text)
-
-    i = 0
-    while i < l:
-        if text[i] == "'":
-            break
-        i += 1
-
-    msg = text[i+1:][::-1]
-    signature = text[:i][::-1]
-
-    if not signature[0].isnumeric(): # i have no idea why sometimes this appears, sometimes doesnt, this fixes it
-        signature = signature[1:] 
-    if not signature[-1].isnumeric(): # i have no idea why sometimes this appears, sometimes doesnt, this fixes it
-        signature = signature[:-1] 
-
-    return msg, int(signature)
 
 def hashes(msg, given_hash, client_pub_key):
 
@@ -95,6 +47,8 @@ def handleClient(connection, first):
     client_pub_key = RSA.importKey(connection.recv(len(pub_key.export_key()))) # receive a length of a pub key - that should be constant and match the size of client pubkey
 
     data = connection.recv(16384)
+    if not data: 
+        return
 
     nonce, key, rest = parseKey(data)
     key = int(key)
@@ -128,9 +82,27 @@ def handleClient(connection, first):
     print("MD5=%x\n" % myHash)
 
     # no integrity damage
+    response = "The integrity of the message has not been compromised." + "'" + str(signature)
+    bad_resp = "WARNING! Integrity was compromised." + "'" + str(signature)
+
+    aes_key = getRandomKey(16) # get random key from /dev/urandom that is 128 bits long, so thats 16 bytes
+    padded_key = RSApadding(int.from_bytes(aes_key, "big"), 2048)
+    encrypted_key = pow(padded_key, client_pub_key.e, client_pub_key.n)
+    cipher = AES.new(aes_key, AES.MODE_EAX)
+    key_nonce = "'" + str(encrypted_key) + "'" + str(int.from_bytes(cipher.nonce, "big"))
+
+    response, _ = cipher.encrypt_and_digest(response.encode())
+    cipher = AES.new(aes_key, AES.MODE_EAX)
+    key_nonce_bad = "'" + str(encrypted_key) + "'" + str(int.from_bytes(cipher.nonce, "big"))
+
+    bad_resp, _ = cipher.encrypt_and_digest(bad_resp.encode())
+
+    encoded_resp = (response + key_nonce.encode()) # add ' to find where the key ends
+    encoded_bad_resp = (bad_resp + key_nonce_bad.encode()) # add ' to find where the key ends
+
     if given_hash == myHash:
         print("The integrity of the message has not been compromised.\n")
-        connection.send("The message was successfully delivered\n".encode())
+        connection.send(encoded_resp)
     else:
         print("WARNING!!! The integrity of the message has been COMPROMISED.\n")
-        connection.send("Error with message integrity, please send again!\n".encode())
+        connection.send(encoded_bad_resp)

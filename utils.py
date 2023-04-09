@@ -5,7 +5,7 @@ from Crypto.PublicKey import RSA
 from os import path, mkdir, urandom
 from Crypto.Hash import MD5
 
-CERT_FOLDER = "certs"
+CERT_FOLDER = "cert"
 
 def readKey(filename):
     key_loc = path.join(CERT_FOLDER, filename)
@@ -92,3 +92,52 @@ def RSAunpadding(msg):
 
 def getRandomKey(size):
     return urandom(size)
+
+def parseKey(message):
+    tmp = str(message)[::-1]
+    key = []
+    nonce = []
+    it = 1
+    
+    while it < len(tmp):
+        if tmp[it] == "'":
+            break
+        nonce.append(tmp[it])
+        it += 1
+    
+    it += 1
+    while it < len(tmp):
+        if tmp[it] == "'":
+            break
+        key.append(tmp[it])
+        it += 1
+
+    if key[0] == '\\': # i have no idea why sometimes this appears, sometimes doesnt, this fixes it
+        key = key[1:] 
+    new_message = message[::-1]
+    new_message = new_message[it-1:]
+    new_message = new_message[::-1]
+    
+    return ''.join(nonce[::-1]), ''.join(key[::-1]), new_message
+
+def getTextAndSig(text):
+    text = text.decode('utf-8', 'ignore')
+
+    text = text[::-1]
+    l = len(text)
+
+    i = 0
+    while i < l:
+        if text[i] == "'":
+            break
+        i += 1
+
+    msg = text[i+1:][::-1]
+    signature = text[:i][::-1]
+
+    if not signature[0].isnumeric(): # i have no idea why sometimes this appears, sometimes doesnt, this fixes it
+        signature = signature[1:] 
+    if not signature[-1].isnumeric(): # i have no idea why sometimes this appears, sometimes doesnt, this fixes it
+        signature = signature[:-1] 
+
+    return msg, int(signature)

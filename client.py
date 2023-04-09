@@ -1,7 +1,7 @@
 ## KRY Projekt 2 - Client code
 ## Author: Vojtech Fiala <xfiala61>
 
-from utils import generateKey, readKey, generateHash, RSApadding, getRandomKey
+from utils import generateKey, readKey, generateHash, RSApadding, getRandomKey, RSAunpadding, parseKey, getTextAndSig
 from Crypto.PublicKey import RSA
 from Crypto.Cipher import AES
 import socket
@@ -62,8 +62,33 @@ def startClient(port):
         print("ciphertext=%s\n" % str(everything_encoded))
 
         sock.sendall(everything_encoded)
-        result = sock.recv(1024) # wait for server answer
-        print(result.decode())
+        result = sock.recv(4096) # wait for server answer
 
-        sock.close()
+
+        nonce, key, rest = parseKey(result)
+        key = int(key)
+        nonce = int(nonce)
+        nonce = nonce.to_bytes((nonce.bit_length() + 7) // 8, "big")
         
+        aes_key = pow(key, priv_key.d, priv_key.n) # encrypted aes key, decrypt it - m = c^d % n
+        aes_key = RSAunpadding(aes_key)
+
+        cipher = AES.new(aes_key.to_bytes(16, "big"), AES.MODE_EAX, nonce=nonce)
+        text_hash = cipher.decrypt(rest)
+
+        msg, recv_sig = getTextAndSig(text_hash)
+
+        if signature == recv_sig:
+            print(msg)
+        # hashes dont match
+        else:
+            # if only the hash dosnt match
+            if (msg == "WARNING! Integrity was compromised. Please send again."):
+                print("Error with message integrity, please send again!")
+            # if even the error message doesnt match
+            else:
+                print(msg)
+                print("Server response integrity error! Something bad is going on...")
+
+        
+        sock.close()

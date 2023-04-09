@@ -1,15 +1,20 @@
 ## Author: Vojtech Fiala <xfiala61>
-# python dodelat virtual environment spousteni
+
 CC = python3
 TARGET = kry.py
 
 .PHONY: build pack run
 
 build:  
-	echo "Musim dodelat spousteni virtualnichi prostredi a stahnout balicky!"
+	{ \
+	python3 -m venv . ;\
+	. ./bin/activate ;\
+	pip install -r requirements.txt ;\
+	}
 
 run:
+	. ./bin/activate
 	@$(CC) ./$(TARGET) $(TYPE) $(PORT)
 
 pack: all
-	zip 221701.zip Makefile main.py
+	zip -r 221701.zip Makefile kry.py client.py utils.py cert requirements.txt dokumentace.pdf
