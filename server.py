@@ -60,30 +60,26 @@ def handleClient(connection, first):
 
     if first:
         print("Client has joined")
-        print("RSA_public_key_sender=%s\n" % formatKeyPrint(pub_key.export_key()))
-        print("RSA_private_key_sender=%s\n" % formatKeyPrint(priv_key.export_key()))
-        print("RSA_public_key_receiver=%s\n" % formatKeyPrint(client_pub_key.export_key()))
-    print("ciphertext=%s\n" % str(data))
-    print("RSA_AES_key=%x\n" % key)
-    print("AES_cipher=%s\n" % str(rest))
-    print("AES_key=%x\n" % aes_key)
+        print("RSA_public_key_sender=%s" % formatKeyPrint(pub_key.export_key()))
+        print("RSA_private_key_sender=%s" % formatKeyPrint(priv_key.export_key()))
+        print("RSA_public_key_receiver=%s" % formatKeyPrint(client_pub_key.export_key()))
+    print("ciphertext=%s" % data.hex())
+    print("RSA_AES_key=%x" % key)
+    print("AES_cipher=%s" % rest.hex())
+    print("AES_key=%x" % aes_key)
 
     cipher = AES.new(aes_key.to_bytes(16, "big"), AES.MODE_EAX, nonce=nonce)
     text_hash = cipher.decrypt(rest)
-    
-    print("text_hash=%s\n" % str(text_hash))
+    print("text_hash=%s" % text_hash.hex())
 
     msg, signature = getTextAndSig(text_hash)
-
     print("plaintext=%s" % msg)
-
     myHash, given_hash = hashes(msg, signature, client_pub_key)
-
-    print("MD5=%x\n" % myHash)
+    print("MD5=%x" % myHash)
 
     # no integrity damage
     response = "The integrity of the message has not been compromised." + "'" + str(signature)
-    bad_resp = "WARNING! Integrity was compromised." + "'" + str(signature)
+    bad_resp = "WARNING! Integrity was compromised. Please send again." + "'" + str(signature)
 
     aes_key = getRandomKey(16) # get random key from /dev/urandom that is 128 bits long, so thats 16 bytes
     padded_key = RSApadding(int.from_bytes(aes_key, "big"), 2048)
@@ -101,8 +97,8 @@ def handleClient(connection, first):
     encoded_bad_resp = (bad_resp + key_nonce_bad.encode()) # add ' to find where the key ends
 
     if given_hash == myHash:
-        print("The integrity of the message has not been compromised.\n")
+        print("The integrity of the message has not been compromised.")
         connection.send(encoded_resp)
     else:
-        print("WARNING!!! The integrity of the message has been COMPROMISED.\n")
+        print("WARNING!!! The integrity of the message has been COMPROMISED.")
         connection.send(encoded_bad_resp)

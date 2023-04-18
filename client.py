@@ -24,13 +24,11 @@ def startClient(port):
     while True:
         
         sock = startConnection(port)
-
         server_pub_key = RSA.importKey(sock.recv(len(pub_key.export_key()))) # receive a length of a pub key - that should be constant and match the size of client pubkey
         # to be especially correct, public key shoudl be ccertified by a higher level public key to make a chain of trust, but I dont really have a higher authority key now, do I
         sock.send(pub_key.export_key())   
 
         message = input("Enter input: ")
-
         msg_hash = generateHash(message)
         msg_hash = int("0x" + msg_hash.hexdigest(), base=16) # convert hex hash to itneger
         padded_hash = RSApadding(msg_hash, 2048) # 2048 bits of RSA key
@@ -41,25 +39,21 @@ def startClient(port):
         print_aes = int.from_bytes(aes_key, "big")
         padded_key = RSApadding(print_aes, 2048)
 
-        print("AES_key=%x\n" % print_aes)
-        print("AES_key_padding=%x\n" % padded_key)
-        print("MD5=%x\n" % msg_hash)
-        print("MD5_padding=%x\n" % padded_hash)
+        print("AES_key=%x" % print_aes)
+        print("AES_key_padding=%x" % padded_key)
+        print("MD5=%x" % msg_hash)
+        print("MD5_padding=%x" % padded_hash)
         
         signature = pow(padded_hash, priv_key.d, priv_key.n) # s = m^d % n
-
         msg_to_encode = message + "'" + str(signature) # add ' between message and signature to difference between those two
-
         encoded_text, _ = cipher.encrypt_and_digest(msg_to_encode.encode())
-
         encrypted_key = pow(padded_key, server_pub_key.e, server_pub_key.n) # c = m^e % n
-
         everything_encoded = (encoded_text + "'".encode() + str(encrypted_key).encode() + "'".encode() + str(int.from_bytes(cipher.nonce, "big")).encode()) # add ' to find where the key ends
 
-        print("RSA_MD5_hash=%x\n" % signature)
-        print("AES_cipher=%s\n" % str(encoded_text))
-        print("RSA_AES_key=%x\n" % encrypted_key)
-        print("ciphertext=%s\n" % str(everything_encoded))
+        print("RSA_MD5_hash=%x" % signature)
+        print("AES_cipher=%s" % encoded_text.hex())
+        print("RSA_AES_key=%x" % encrypted_key)
+        print("ciphertext=%s" % everything_encoded.hex())
 
         sock.sendall(everything_encoded)
         result = sock.recv(4096) # wait for server answer

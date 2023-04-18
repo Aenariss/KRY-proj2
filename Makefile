@@ -16,5 +16,5 @@ run:
 	. ./bin/activate
 	@$(CC) ./$(TARGET) $(TYPE) $(PORT)
 
-pack: all
+pack:
 	zip -r 221701.zip Makefile kry.py client.py utils.py cert requirements.txt dokumentace.pdf
