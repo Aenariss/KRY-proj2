@@ -9,12 +9,14 @@ build:
 	{ \
 	python3 -m venv . ;\
 	. ./bin/activate ;\
-	pip install -r requirements.txt ;\
+	pip3 install -r requirements.txt ;\
 	}
 
 run:
-	. ./bin/activate
-	@$(CC) ./$(TARGET) $(TYPE) $(PORT)
+	{ \
+	. ./bin/activate ;\
+	$(CC) ./$(TARGET) $(TYPE) $(PORT) ;\
+	}
 
 pack:
-	zip -r 221701.zip Makefile kry.py client.py utils.py cert requirements.txt dokumentace.pdf
+	zip -r 221701.zip Makefile kry.py client.py server.py utils.py cert requirements.txt dokumentace.pdf

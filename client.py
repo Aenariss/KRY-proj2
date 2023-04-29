@@ -47,6 +47,7 @@ def startClient(port):
         signature = pow(padded_hash, priv_key.d, priv_key.n) # s = m^d % n
         msg_to_encode = message + "'" + str(signature) # add ' between message and signature to difference between those two
         encoded_text, _ = cipher.encrypt_and_digest(msg_to_encode.encode())
+
         encrypted_key = pow(padded_key, server_pub_key.e, server_pub_key.n) # c = m^e % n
         everything_encoded = (encoded_text + "'".encode() + str(encrypted_key).encode() + "'".encode() + str(int.from_bytes(cipher.nonce, "big")).encode()) # add ' to find where the key ends
 
